@@ -1,25 +1,29 @@
 
 import { GoogleGenAI, Type } from "@google/genai";
 
-// process.env kontrolü eklendi
 const getApiKey = () => {
-  try {
-    return (window as any).process?.env?.API_KEY || "";
-  } catch {
-    return "";
+  // Try getting from process.env (injected by some build tools or the environment)
+  if (typeof process !== 'undefined' && process.env && process.env.API_KEY) {
+    return process.env.API_KEY;
   }
+  // Try getting from window shim we added in index.html
+  if ((window as any).process?.env?.API_KEY) {
+    return (window as any).process.env.API_KEY;
+  }
+  return "";
 };
 
-const ai = new GoogleGenAI({ apiKey: getApiKey() });
-//test
 export const analyzeNotes = async (
   imageData: string,
   userPrompt: string
 ) => {
-  // Eğer API KEY yoksa hata fırlat
-  if (!getApiKey()) {
-    throw new Error("API Anahtarı bulunamadı. Lütfen environment ayarlarını kontrol edin.");
+  const apiKey = getApiKey();
+  
+  if (!apiKey) {
+    throw new Error("Gemini API Key bulunamadı! Lütfen bir API anahtarı ekleyin veya environment ayarlarını kontrol edin.");
   }
+
+  const ai = new GoogleGenAI({ apiKey });
 
   try {
     const response = await ai.models.generateContent({
@@ -65,8 +69,12 @@ export const analyzeNotes = async (
 
     const responseText = response.text || "{}";
     return JSON.parse(responseText);
-  } catch (error) {
+  } catch (error: any) {
     console.error("AI Analysis Error:", error);
+    // User friendly error message
+    if (error.message?.includes("API_KEY_INVALID")) {
+      throw new Error("Geçersiz API Anahtarı. Lütfen anahtarınızı kontrol edin.");
+    }
     throw error;
   }
 };

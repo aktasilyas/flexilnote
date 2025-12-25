@@ -1,3 +1,4 @@
+
 {
   "name": "flexinote-ai",
   "version": "1.0.0",
@@ -16,7 +17,6 @@
     "@capacitor/android": "^6.0.0",
     "@capacitor/core": "^6.0.0",
     "@capacitor/ios": "^6.0.0",
-    "@google/genai": "^1.34.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
   },
