@@ -6,7 +6,7 @@
   "main": "index.js",
   "scripts": {
     "start": "npx serve .",
-    "build": "echo 'Building...' && mkdir -p dist && cp index.html dist/ && cp -r components dist/ && cp -r services dist/ && cp *.tsx dist/ && cp *.ts dist/",
+    "build": "node build.js",
     "app:sync": "npx cap sync",
     "app:open:android": "npx cap open android",
     "app:open:ios": "npx cap open ios"
