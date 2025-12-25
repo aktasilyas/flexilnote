@@ -18,30 +18,36 @@
             errorDiv.style.left = '0';
             errorDiv.style.width = '100%';
             errorDiv.style.height = '100%';
-            errorDiv.style.backgroundColor = 'rgba(15, 23, 42, 0.95)';
+            errorDiv.style.backgroundColor = 'rgba(15, 23, 42, 0.98)';
             errorDiv.style.color = '#f87171';
             errorDiv.style.padding = '30px';
             errorDiv.style.zIndex = '10000';
             errorDiv.style.overflow = 'auto';
             errorDiv.style.fontFamily = 'monospace';
             errorDiv.innerHTML = `
-                <h1 style="font-size: 24px; color: white; margin-bottom: 20px; border-bottom: 1px solid #334155; padding-bottom: 10px;">⚠️ Uygulama Hatası</h1>
-                <p style="margin-bottom: 10px;"><strong>Hata Mesajı:</strong> <span style="color: #fca5a5;">${msg}</span></p>
-                <p style="margin-bottom: 10px;"><strong>Konum:</strong> ${url}</p>
-                <p style="margin-bottom: 10px;"><strong>Satır/Sütun:</strong> ${lineNo}:${columnNo}</p>
-                <div style="background: #1e293b; padding: 15px; border-radius: 8px; margin-top: 20px; color: #94a3b8; font-size: 12px;">
-                    ${error && error.stack ? error.stack.replace(/\n/g, '<br>') : 'Stack trace yok.'}
+                <div style="max-width: 600px; margin: 0 auto;">
+                    <h1 style="font-size: 24px; color: white; margin-bottom: 20px; border-bottom: 1px solid #334155; padding-bottom: 10px;">⚠️ Çalıştırma Hatası</h1>
+                    <p style="margin-bottom: 10px;"><strong>Hata Mesajı:</strong> <span style="color: #fca5a5;">${msg}</span></p>
+                    <p style="margin-bottom: 10px;"><strong>Konum:</strong> ${url}</p>
+                    <p style="margin-bottom: 10px;"><strong>Satır:</strong> ${lineNo}:${columnNo}</p>
+                    <div style="background: #1e293b; padding: 15px; border-radius: 8px; margin-top: 20px; color: #94a3b8; font-size: 12px; white-space: pre-wrap;">
+                        ${error && error.stack ? error.stack : 'Stack bilgisi yok.'}
+                    </div>
+                    <div style="margin-top: 30px; display: flex; gap: 10px;">
+                        <button onclick="location.reload()" style="background: #4f46e5; color: white; padding: 12px 24px; border-radius: 8px; border: none; font-weight: bold; cursor: pointer;">Tekrar Dene</button>
+                        <button onclick="localStorage.clear(); location.reload();" style="background: #334155; color: white; padding: 12px 24px; border-radius: 8px; border: none; font-weight: bold; cursor: pointer;">Belleği Temizle ve Yenile</button>
+                    </div>
                 </div>
-                <button onclick="location.reload()" style="background: #4f46e5; color: white; padding: 12px 24px; border-radius: 8px; border: none; font-weight: bold; margin-top: 30px; cursor: pointer; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);">Sayfayı Yenile</button>
             `;
             document.body.appendChild(errorDiv);
             return false;
         };
 
         // process.env Shim for Gemini SDK
+        // NOT: API anahtarınızı aşağıdaki tırnakların içine yapıştırın.
         window.process = {
             env: {
-                API_KEY: "" // Environment will inject this if available
+                API_KEY: "" 
             }
         };
 
@@ -74,9 +80,19 @@
         canvas { touch-action: none; cursor: crosshair; }
         .no-select { -webkit-user-select: none; user-select: none; }
         ::-webkit-scrollbar { display: none; }
-        
-        /* Tablet optimization for drawing */
         #root { width: 100%; height: 100%; }
+        
+        /* Skeleton Screen for Loading */
+        .loading-screen {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            width: 100vw;
+            align-items: center;
+            justify-content: center;
+            background: #f8fafc;
+            color: #64748b;
+        }
     </style>
     <script type="importmap">
 {
@@ -93,10 +109,12 @@
 </head>
 <body>
     <div id="root">
-        <div style="display: flex; height: 100vh; width: 100vw; align-items: center; justify-content: center; background: #f8fafc; color: #64748b;">
-            <p>Uygulama yükleniyor...</p>
+        <div class="loading-screen">
+            <div style="width: 40px; height: 40px; border: 4px solid #e2e8f0; border-top: 4px solid #4f46e5; border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 15px;"></div>
+            <p style="font-weight: 500;">FlexiNote AI Hazırlanıyor...</p>
         </div>
     </div>
+    <style>@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }</style>
     <script type="module" src="./index.tsx"></script>
 </body>
 </html>
