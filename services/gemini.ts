@@ -1,13 +1,26 @@
 
 import { GoogleGenAI, Type } from "@google/genai";
 
-// Always initialize with the exact process.env.API_KEY as per coding guidelines
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+// process.env kontrolü eklendi
+const getApiKey = () => {
+  try {
+    return (window as any).process?.env?.API_KEY || "";
+  } catch {
+    return "";
+  }
+};
+
+const ai = new GoogleGenAI({ apiKey: getApiKey() });
 
 export const analyzeNotes = async (
   imageData: string,
   userPrompt: string
 ) => {
+  // Eğer API KEY yoksa hata fırlat
+  if (!getApiKey()) {
+    throw new Error("API Anahtarı bulunamadı. Lütfen environment ayarlarını kontrol edin.");
+  }
+
   try {
     const response = await ai.models.generateContent({
       model: "gemini-3-flash-preview",

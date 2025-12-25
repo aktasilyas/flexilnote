@@ -9,7 +9,9 @@
     "build": "node build.js",
     "app:sync": "npx cap sync",
     "app:open:android": "npx cap open android",
-    "app:open:ios": "npx cap open ios"
+    "app:open:ios": "npx cap open ios",
+    "clean:android": "cd android && ./gradlew clean && cd ..",
+    "rebuild:android": "npm run build && npx cap sync android && npx cap run android"
   },
   "dependencies": {
     "@capacitor/android": "^6.0.0",
