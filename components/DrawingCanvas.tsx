@@ -26,14 +26,16 @@ const DrawingCanvas = forwardRef<DrawingCanvasHandle, DrawingCanvasProps>(({
 }, ref) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  
+  // Çizim katmanını ayırmak için gizli bir canvas kullanıyoruz
   const offscreenCanvasRef = useRef<HTMLCanvasElement | null>(null);
   
   const [isDrawing, setIsDrawing] = useState(false);
-  const lastPanPoint = useRef<{ x: number, y: number } | null>(null);
   const currentStrokeRef = useRef<Stroke | null>(null);
   const bgImageRef = useRef<HTMLImageElement | null>(null);
   const selectionStartPos = useRef<Point | null>(null);
   const [selectionRect, setSelectionRect] = useState<Rect | null>(null);
+  const animationRef = useRef<number>(0);
 
   useImperativeHandle(ref, () => ({
     captureSelection: (rect: Rect) => {
@@ -42,7 +44,7 @@ const DrawingCanvas = forwardRef<DrawingCanvasHandle, DrawingCanvasProps>(({
       const tempCanvas = document.createElement('canvas');
       const tempCtx = tempCanvas.getContext('2d');
       if (!tempCtx) return null;
-      const captureScale = 2;
+      const captureScale = 3; 
       tempCanvas.width = rect.width * captureScale;
       tempCanvas.height = rect.height * captureScale;
       tempCtx.save();
@@ -59,20 +61,25 @@ const DrawingCanvas = forwardRef<DrawingCanvasHandle, DrawingCanvasProps>(({
     if (backgroundUrl) {
       const img = new Image();
       img.src = backgroundUrl;
-      img.onload = () => { bgImageRef.current = img; renderAll(); };
+      img.onload = () => { 
+        bgImageRef.current = img; 
+        renderAll(); 
+      };
     }
   }, [backgroundUrl]);
 
   const drawStrokeOnCtx = (ctx: CanvasRenderingContext2D, stroke: Stroke) => {
     const points = stroke.points;
     if (points.length < 1) return;
+    
     ctx.save();
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
     
     if (stroke.tool === Tool.ERASER) {
+      // destination-out: Çizim yapıldığı yerdeki mevcut içeriği siler (şeffaflaştırır)
       ctx.globalCompositeOperation = 'destination-out';
-      ctx.lineWidth = 40 / scale;
+      ctx.lineWidth = 30 / scale;
       ctx.strokeStyle = 'rgba(0,0,0,1)'; 
     } else {
       ctx.globalCompositeOperation = stroke.tool === Tool.HIGHLIGHTER ? 'multiply' : 'source-over';
@@ -83,17 +90,8 @@ const DrawingCanvas = forwardRef<DrawingCanvasHandle, DrawingCanvasProps>(({
 
     ctx.beginPath();
     ctx.moveTo(points[0].x, points[0].y);
-    
-    // Değişken kalınlık (Basınç desteği simülasyonu)
-    if (points.length < 3) {
-      points.forEach(p => ctx.lineTo(p.x, p.y));
-    } else {
-      for (let i = 1; i < points.length - 1; i++) {
-        const xc = (points[i].x + points[i + 1].x) / 2;
-        const yc = (points[i].y + points[i + 1].y) / 2;
-        ctx.quadraticCurveTo(points[i].x, points[i].y, xc, yc);
-      }
-      ctx.lineTo(points[points.length - 1].x, points[points.length - 1].y);
+    for (let i = 1; i < points.length; i++) {
+      ctx.lineTo(points[i].x, points[i].y);
     }
     ctx.stroke();
     ctx.restore();
@@ -104,81 +102,99 @@ const DrawingCanvas = forwardRef<DrawingCanvasHandle, DrawingCanvasProps>(({
     if (!canvas || !containerRef.current) return;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
+
     const dpr = window.devicePixelRatio || 1;
     const rect = containerRef.current.getBoundingClientRect();
     
-    if (canvas.width !== rect.width * dpr || canvas.height !== rect.height * dpr) {
+    // Boyutları güncelle
+    if (canvas.width !== rect.width * dpr) {
       canvas.width = rect.width * dpr;
       canvas.height = rect.height * dpr;
       canvas.style.width = `${rect.width}px`;
       canvas.style.height = `${rect.height}px`;
-    }
 
-    if (!offscreenCanvasRef.current || offscreenCanvasRef.current.width !== canvas.width || offscreenCanvasRef.current.height !== canvas.height) {
-      offscreenCanvasRef.current = document.createElement('canvas');
+      // Offscreen canvas boyutlarını da güncelle
+      if (!offscreenCanvasRef.current) {
+        offscreenCanvasRef.current = document.createElement('canvas');
+      }
       offscreenCanvasRef.current.width = canvas.width;
       offscreenCanvasRef.current.height = canvas.height;
     }
 
-    const offCtx = offscreenCanvasRef.current.getContext('2d');
-    if (!offCtx) return;
+    const offscreenCanvas = offscreenCanvasRef.current;
+    if (!offscreenCanvas) return;
+    const offscreenCtx = offscreenCanvas.getContext('2d');
+    if (!offscreenCtx) return;
 
+    // 1. Ana tuvali temizle
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    offCtx.setTransform(1, 0, 0, 1, 0, 0);
-    offCtx.clearRect(0, 0, offscreenCanvasRef.current.width, offscreenCanvasRef.current.height);
 
-    ctx.scale(dpr, dpr);
+    // 2. Arka Planı (PDF/Görsel) Çiz
     ctx.save();
+    ctx.scale(dpr, dpr);
     ctx.translate(offset.x, offset.y);
     ctx.scale(scale, scale);
-    if (bgImageRef.current && pageDimensions.width > 0) {
+    if (bgImageRef.current) {
       ctx.drawImage(bgImageRef.current, 0, 0, pageDimensions.width, pageDimensions.height);
     }
     ctx.restore();
 
-    offCtx.scale(dpr, dpr);
-    offCtx.translate(offset.x, offset.y);
-    offCtx.scale(scale, scale);
-    strokes.forEach(s => drawStrokeOnCtx(offCtx, s));
-    if (currentStrokeRef.current) drawStrokeOnCtx(offCtx, currentStrokeRef.current);
+    // 3. Çizim Katmanını (Mürekkep) Hazırla
+    offscreenCtx.setTransform(1, 0, 0, 1, 0, 0);
+    offscreenCtx.clearRect(0, 0, offscreenCanvas.width, offscreenCanvas.height);
+    offscreenCtx.scale(dpr, dpr);
+    offscreenCtx.translate(offset.x, offset.y);
+    offscreenCtx.scale(scale, scale);
 
-    ctx.save();
+    // Tüm çizgileri offscreen katmanına çiz (Silgi burada destination-out yaparak sadece mürekkebi siler)
+    strokes.forEach(s => drawStrokeOnCtx(offscreenCtx, s));
+    if (currentStrokeRef.current) drawStrokeOnCtx(offscreenCtx, currentStrokeRef.current);
+
+    // 4. Çizim Katmanını Ana Tuvalin Üstüne Yapıştır
     ctx.setTransform(1, 0, 0, 1, 0, 0);
-    ctx.drawImage(offscreenCanvasRef.current, 0, 0, rect.width * dpr, rect.height * dpr, 0, 0, rect.width, rect.height);
-    ctx.restore();
+    ctx.drawImage(offscreenCanvas, 0, 0);
 
+    // 5. Seçim Çerçevesini (Kement) En Üste Çiz
     if (selectionRect) {
       ctx.save();
+      ctx.scale(dpr, dpr);
       ctx.translate(offset.x, offset.y);
       ctx.scale(scale, scale);
       ctx.strokeStyle = '#4f46e5';
       ctx.setLineDash([5, 5]);
+      ctx.lineDashOffset = -animationRef.current;
       ctx.lineWidth = 2 / scale;
-      ctx.fillStyle = 'rgba(79, 70, 229, 0.1)';
       ctx.strokeRect(selectionRect.x, selectionRect.y, selectionRect.width, selectionRect.height);
+      ctx.fillStyle = 'rgba(79, 70, 229, 0.05)';
       ctx.fillRect(selectionRect.x, selectionRect.y, selectionRect.width, selectionRect.height);
       ctx.restore();
     }
   }, [strokes, scale, offset, selectionRect, pageDimensions]);
 
-  useEffect(() => { renderAll(); }, [renderAll]);
+  useEffect(() => {
+    let frameId: number;
+    const animate = () => {
+      animationRef.current += 0.5;
+      if (tool === Tool.SELECT && selectionRect) renderAll();
+      animationRef.current %= 100;
+      frameId = requestAnimationFrame(animate);
+    };
+    frameId = requestAnimationFrame(animate);
+    return () => cancelAnimationFrame(frameId);
+  }, [tool, selectionRect, renderAll]);
 
-  // Mobil Stylus ve Basınç Hassasiyeti İçin Pointer API Kullanımı
+  useEffect(() => { 
+    renderAll(); 
+  }, [renderAll]);
+
   const handlePointerDown = (e: React.PointerEvent) => {
     if (e.pointerType === 'mouse' && e.button !== 0) return;
-    
-    // Shift tuşu veya iki parmakla kaydırma (Pan) kontrolü
-    if (e.buttons === 4 || e.pointerType === 'touch' && e.pressure === 0) {
-      lastPanPoint.current = { x: e.clientX, y: e.clientY };
-      return;
-    }
-
     const rect = canvasRef.current!.getBoundingClientRect();
     const point: Point = {
       x: (e.clientX - rect.left - offset.x) / scale,
       y: (e.clientY - rect.top - offset.y) / scale,
-      pressure: e.pressure || 0.5 // Apple Pencil basıncını yakalar
+      pressure: e.pressure || 0.5
     };
 
     if (tool === Tool.SELECT) {
@@ -186,21 +202,13 @@ const DrawingCanvas = forwardRef<DrawingCanvasHandle, DrawingCanvasProps>(({
       selectionStartPos.current = point;
       onSelectionComplete(null);
     } else {
-      let width = 2;
-      let opacity = 1.0;
-      switch(tool) {
-        case Tool.PENCIL: width = 1.2; opacity = 0.7; break;
-        case Tool.PEN: width = 2.5; break;
-        case Tool.PEN_FINE: width = 1.0; break;
-        case Tool.PEN_GEL: width = 3.5; break;
-        case Tool.MARKER: width = 8.0; break;
-        case Tool.HIGHLIGHTER: width = 24.0; opacity = 0.4; break;
-      }
       currentStrokeRef.current = {
         id: Math.random().toString(36),
         points: [point],
-        tool, color, width: (width * (point.pressure * 1.5)) / (scale > 1.5 ? Math.pow(scale, 0.25) : 1),
-        opacity
+        tool, 
+        color, 
+        width: (tool === Tool.PEN ? 2.5 : tool === Tool.HIGHLIGHTER ? 20 : 5) / (scale > 1 ? Math.sqrt(scale) : 1),
+        opacity: tool === Tool.HIGHLIGHTER ? 0.3 : 1
       };
     }
     setIsDrawing(true);
@@ -208,13 +216,7 @@ const DrawingCanvas = forwardRef<DrawingCanvasHandle, DrawingCanvasProps>(({
   };
 
   const handlePointerMove = (e: React.PointerEvent) => {
-    if (lastPanPoint.current) {
-      setOffset({ x: offset.x + (e.clientX - lastPanPoint.current.x), y: offset.y + (e.clientY - lastPanPoint.current.y) });
-      lastPanPoint.current = { x: e.clientX, y: e.clientY };
-      return;
-    }
     if (!isDrawing) return;
-
     const rect = canvasRef.current!.getBoundingClientRect();
     const point: Point = {
       x: (e.clientX - rect.left - offset.x) / scale,
@@ -243,34 +245,18 @@ const DrawingCanvas = forwardRef<DrawingCanvasHandle, DrawingCanvasProps>(({
       currentStrokeRef.current = null;
     }
     setIsDrawing(false);
-    lastPanPoint.current = null;
     selectionStartPos.current = null;
     (e.target as HTMLElement).releasePointerCapture(e.pointerId);
-  };
-
-  const handleWheel = (e: React.WheelEvent) => {
-    e.preventDefault();
-    if (e.ctrlKey || e.metaKey) {
-      const zoomSpeed = 0.0015;
-      const newScale = Math.min(Math.max(scale - e.deltaY * zoomSpeed, 0.1), 10);
-      const rect = canvasRef.current!.getBoundingClientRect();
-      const mouseX = e.clientX - rect.left, mouseY = e.clientY - rect.top;
-      const worldX = (mouseX - offset.x) / scale, worldY = (mouseY - offset.y) / scale;
-      setScale(newScale);
-      setOffset({ x: mouseX - worldX * newScale, y: mouseY - worldY * newScale });
-    } else {
-      setOffset({ x: offset.x - e.deltaX, y: offset.y - e.deltaY });
-    }
+    renderAll();
   };
 
   return (
-    <div ref={containerRef} className="relative w-full h-full overflow-hidden bg-[#F1F3F4]">
+    <div ref={containerRef} className="relative w-full h-full overflow-hidden">
       <canvas
         ref={canvasRef}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
-        onWheel={handleWheel}
         className="absolute inset-0 touch-none select-none"
       />
     </div>

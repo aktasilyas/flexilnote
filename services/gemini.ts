@@ -1,28 +1,13 @@
 
 import { GoogleGenAI, Type } from "@google/genai";
 
-const getApiKey = () => {
-  if (typeof process !== 'undefined' && process.env && process.env.API_KEY) {
-    return process.env.API_KEY;
-  }
-  if ((window as any).process?.env?.API_KEY) {
-    return (window as any).process.env.API_KEY;
-  }
-  return "";
-};
+// Initialize the GoogleGenAI client exclusively with process.env.API_KEY as per the guidelines.
+const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 export const analyzeNotes = async (
   imageData: string,
   userPrompt: string
 ) => {
-  const apiKey = getApiKey();
-  
-  if (!apiKey || apiKey === "") {
-    throw new Error("API ANAHTARI EKSİK: Lütfen index.html içindeki API_KEY alanına anahtarınızı yapıştırın.");
-  }
-
-  const ai = new GoogleGenAI({ apiKey });
-
   try {
     const response = await ai.models.generateContent({
       model: "gemini-3-flash-preview",
