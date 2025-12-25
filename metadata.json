@@ -1,0 +1,8 @@
+{
+  "name": "FlexiNote AI",
+  "description": "Profesyonel AI Destekli Not Alma Uygulaması",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}

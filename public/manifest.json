@@ -1,0 +1,16 @@
+
+{
+  "short_name": "FlexiNote",
+  "name": "FlexiNote AI Student Assistant",
+  "icons": [
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/588/588395.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ],
+  "start_url": ".",
+  "display": "standalone",
+  "theme_color": "#4f46e5",
+  "background_color": "#ffffff"
+}

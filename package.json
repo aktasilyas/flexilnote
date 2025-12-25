@@ -1,0 +1,24 @@
+
+{
+  "name": "flexinote-ai",
+  "version": "1.0.0",
+  "description": "AI Student Note Taking App",
+  "main": "index.js",
+  "scripts": {
+    "start": "npx serve .",
+    "build": "echo 'Building...' && mkdir -p dist && cp index.html dist/ && cp -r components dist/ && cp -r services dist/ && cp *.tsx dist/ && cp *.ts dist/",
+    "app:sync": "npx cap sync",
+    "app:open:android": "npx cap open android",
+    "app:open:ios": "npx cap open ios"
+  },
+  "dependencies": {
+    "@capacitor/android": "^6.0.0",
+    "@capacitor/core": "^6.0.0",
+    "@capacitor/ios": "^6.0.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^6.0.0"
+  }
+}
