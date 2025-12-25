@@ -16,10 +16,10 @@
             return false;
         };
 
-        // API Key Injection
+        // API Key Injection - process.env.API_KEY will be injected at runtime
         window.process = {
             env: {
-                API_KEY: "" // BURAYA KENDİ KEYİNİZİ YAPIŞTIRIN
+                API_KEY: "" 
             }
         };
 

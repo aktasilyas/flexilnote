@@ -10,7 +10,8 @@
     "app:sync": "npx cap sync",
     "app:open:android": "npx cap open android",
     "app:open:ios": "npx cap open ios",
-    "clean:android": "cd android && gradlew clean || ./gradlew clean",
+    "clean:android": "cd android && (gradlew clean || ./gradlew clean || .\\gradlew.bat clean)",
+    "android:build": "npm run build && npx cap sync android && cd android && .\\gradlew.bat assembleDebug",
     "rebuild:android": "npm run build && npx cap sync android && npx cap run android"
   },
   "dependencies": {
