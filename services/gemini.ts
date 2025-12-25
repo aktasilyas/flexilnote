@@ -11,7 +11,7 @@ const getApiKey = () => {
 };
 
 const ai = new GoogleGenAI({ apiKey: getApiKey() });
-
+//test
 export const analyzeNotes = async (
   imageData: string,
   userPrompt: string
